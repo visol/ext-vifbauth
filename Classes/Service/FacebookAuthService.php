@@ -67,14 +67,14 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 	 * CONSTRUCTOR
 	 */
 	public function __construct() {
-		$sysPageObject = GeneralUtility::makeInstance('\TYPO3\CMS\Frontend\Page\PageRepository');
+		$sysPageObject = GeneralUtility::makeInstance('TYPO3\CMS\Frontend\Page\PageRepository');
 		$rootLine = $sysPageObject->getRootLine(1);
-		$typoscriptParser = GeneralUtility::makeInstance('\TYPO3\CMS\Core\TypoScript\ExtendedTemplateService');
+		$typoscriptParser = GeneralUtility::makeInstance('TYPO3\CMS\Core\TypoScript\ExtendedTemplateService');
 		$typoscriptParser->tt_track = 0;
 		$typoscriptParser->init();
 		$typoscriptParser->runThroughTemplates($rootLine);
 		$typoscriptParser->generateConfig();
-		$typoScriptService = GeneralUtility::makeInstance('\TYPO3\CMS\Extbase\Service\TypoScriptService');
+		$typoScriptService = GeneralUtility::makeInstance('TYPO3\CMS\Extbase\Service\TypoScriptService');
 		$this->extensionConfiguration = $typoScriptService->convertTypoScriptArrayToPlainArray($typoscriptParser->setup['plugin.']['tx_vifbauth.']);
 		$this->databaseHandle = $GLOBALS['TYPO3_DB'];
 	}
