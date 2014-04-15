@@ -1,0 +1,13 @@
+plugin.tx_vifbauth {
+	settings {
+		loginSuccessPid = 192
+		facebookAppId =
+		facebookAppSecret =
+		defaultFrontendUserGroupUid = 4
+	}
+	persistence {
+		storagePid = 144
+	}
+}
+
+module.tx_vifbauth < plugin.tx_vifbauth
