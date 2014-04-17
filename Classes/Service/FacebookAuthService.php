@@ -210,12 +210,6 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 	 * @return array
 	 */
 	protected function getUserDataArrayForDataHandler($userInformation) {
-		$facebookImageUrl = 'http://graph.facebook.com/' . $userInformation['id'] . '/picture?width=260&height=260';
-		$facebookImageName = uniqid(rand(), TRUE) . '.jpg';
-		$facebookImageAbsoluteName = GeneralUtility::getFileAbsFileName('uploads/pics/' . $facebookImageName);
-		$facebookImage = GeneralUtility::getUrl($facebookImageUrl);
-		GeneralUtility::writeFile($facebookImageAbsoluteName, $facebookImage);
-
 		$user = array(
 			'tstamp' => time(),
 			'username' => $userInformation['id'],
@@ -225,7 +219,6 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 			'usergroup' => (string)$this->extensionConfiguration['settings']['defaultFrontendUserGroupUid'],
 			'city' => $userInformation['location']['name'],
 			'tx_extbase_type' => 'Tx_Easyvote_CommunityUser',
-			'image' => $facebookImageName
 		);
 
 		return $user;
