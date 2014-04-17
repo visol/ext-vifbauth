@@ -65,6 +65,10 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 	 */
 	protected $databaseHandle;
 
+	const LANGUAGE_GERMAN = 1;
+	const LANGUAGE_FRENCH = 2;
+	const LANGUAGE_ITALIAN = 3;
+
 	/**
 	 * CONSTRUCTOR
 	 */
@@ -210,6 +214,14 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 	 * @return array
 	 */
 	protected function getUserDataArrayForDataHandler($userInformation) {
+		$userLanguage = FacebookAuthService::LANGUAGE_GERMAN;
+		if (GeneralUtility::isFirstPartOfStr($userInformation['locale'], 'fr')) {
+			$userLanguage = FacebookAuthService::LANGUAGE_FRENCH;
+		}
+		if (GeneralUtility::isFirstPartOfStr($userInformation['locale'], 'it')) {
+			$userLanguage = FacebookAuthService::LANGUAGE_ITALIAN;
+		}
+
 		$user = array(
 			'tstamp' => time(),
 			'username' => $userInformation['id'],
@@ -219,6 +231,7 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 			'usergroup' => (string)$this->extensionConfiguration['settings']['defaultFrontendUserGroupUid'],
 			'city' => $userInformation['location']['name'],
 			'tx_extbase_type' => 'Tx_Easyvote_CommunityUser',
+			'user_language' => $userLanguage,
 		);
 
 		return $user;
