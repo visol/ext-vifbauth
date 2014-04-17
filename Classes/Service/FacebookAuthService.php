@@ -5,6 +5,8 @@ use TYPO3\CMS\Core\Exception;
 use TYPO3\CMS\Core\Utility\DebugUtility;
 use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Core\Utility\HttpUtility;
+use TYPO3\CMS\Core\Utility\ResourceUtility;
 
 require_once(\TYPO3\CMS\Core\Utility\ExtensionManagementUtility::extPath('vifbauth') . 'Resources/PHP/facebook.php');
 
@@ -126,6 +128,7 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 			'appId'  => $this->extensionConfiguration['settings']['facebookAppId'],
 			'secret' => $this->extensionConfiguration['settings']['facebookAppSecret'],
 		);
+		/** @var \Facebook $facebook */
 		$facebook = GeneralUtility::makeInstance('\Facebook', $facebookConfiguration);
 		return $facebook->getUser() > 0 ? TRUE : FALSE;
 	}
@@ -140,16 +143,12 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 			'appId'  => $this->extensionConfiguration['settings']['facebookAppId'],
 			'secret' => $this->extensionConfiguration['settings']['facebookAppSecret'],
 		);
+		/** @var \Facebook $facebook */
 		$facebook = GeneralUtility::makeInstance('\Facebook', $facebookConfiguration);
 		$facebookUserId = $facebook->getUser();
 
 		if ($facebookUserId > 0) {
-			// TODO make use of it
-			$additionalFields = array(
-				'fields' => 'picture',
-				'type' => 'large'
-			);
-			$facebookUserInformation = $facebook->api('/me');
+			$facebookUserInformation = $facebook->api('/' . $facebookUserId);
 
 			// we have an authenticated Facebook user
 			$user = $this->getFrontendUser($facebookUserId);
@@ -182,20 +181,13 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 	 */
 	protected function createFrontendUser($userInformation) {
 		//$this->writelog(255,3,3,2, "Importing user %s!", array($eventoId));
-		$user = array(
-			'crdate' => time(),
-			'pid' => $this->extensionConfiguration['persistence']['storagePid'],
+		$user = $this->getUserDataArrayForDataHandler($userInformation);
+		$user['crdate'] = time();
+		$user['pid'] = $this->extensionConfiguration['persistence']['storagePid'];
+		$user['birthdate'] = \DateTime::createFromFormat('m/d/Y', $userInformation['birthday'])->getTimestamp();
+		$user['password'] = md5(GeneralUtility::shortMD5(uniqid(rand(), TRUE)));
+		$user['email'] = $userInformation['email'];
 
-			'tstamp' => time(),
-			'username' => $userInformation['id'],
-			'password' => md5(GeneralUtility::shortMD5(uniqid(rand(), TRUE))),
-			'email' => $userInformation['email'],
-			'first_name' => $userInformation['first_name'],
-			'last_name' => $userInformation['last_name'],
-			'usergroup' => (string)$this->extensionConfiguration['settings']['defaultFrontendUserGroupUid'],
-			'city' => $userInformation['location']['name'],
-			'tx_extbase_type' => 'Tx_Easyvote_CommunityUser',
-		);
 		$this->databaseHandle->exec_INSERTquery('fe_users', $user);
 	}
 
@@ -209,18 +201,34 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 	protected function updateFrontendUser($userId, $userInformation) {
 		//$this->writelog(255,3,3,2,	"Updating user %s!", array($eventoId));
 		$where = "uid = " . $userId;
+		$user = $this->getUserDataArrayForDataHandler($userInformation);
+		$this->databaseHandle->exec_UPDATEquery('fe_users', $where, $user);
+	}
+
+	/**
+	 * @param array $userInformation
+	 * @return array
+	 */
+	protected function getUserDataArrayForDataHandler($userInformation) {
+		$facebookImageUrl = 'http://graph.facebook.com/' . $userInformation['id'] . '/picture?width=260&height=260';
+		$facebookImageName = uniqid(rand(), TRUE) . '.jpg';
+		$facebookImageAbsoluteName = GeneralUtility::getFileAbsFileName('uploads/pics/' . $facebookImageName);
+		$facebookImage = GeneralUtility::getUrl($facebookImageUrl);
+		GeneralUtility::writeFile($facebookImageAbsoluteName, $facebookImage);
+
 		$user = array(
 			'tstamp' => time(),
 			'username' => $userInformation['id'],
-			'password' => md5(GeneralUtility::shortMD5(uniqid(rand(), TRUE))),
-			'email' => $userInformation['email'],
+			'gender' => $userInformation['gender'] === 'male' ? 1 : 2,
 			'first_name' => $userInformation['first_name'],
 			'last_name' => $userInformation['last_name'],
 			'usergroup' => (string)$this->extensionConfiguration['settings']['defaultFrontendUserGroupUid'],
 			'city' => $userInformation['location']['name'],
 			'tx_extbase_type' => 'Tx_Easyvote_CommunityUser',
+			'image' => $facebookImageName
 		);
-		$this->databaseHandle->exec_UPDATEquery('fe_users', $where, $user);
+
+		return $user;
 	}
 
 }

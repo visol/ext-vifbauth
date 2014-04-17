@@ -38,10 +38,14 @@ class AuthenticationController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionC
 			'appId'  => $this->settings['facebookAppId'],
 			'secret' => $this->settings['facebookAppSecret'],
 		);
+		/** @var \Facebook $facebook */
 		$facebook = GeneralUtility::makeInstance('\Facebook', $facebookConfiguration);
 
 		$redirectUri = $this->uriBuilder->setTargetPageUid($this->settings['loginSuccessPid'])->setArguments(array('logintype' => 'login'))->setCreateAbsoluteUri(TRUE)->build();
-		$loginUrlParameters = array('redirect_uri' => $redirectUri);
+		$loginUrlParameters = array(
+			'redirect_uri' => $redirectUri,
+			'scope' => 'basic_info,email,user_birthday'
+		);
 		$loginUrl = $facebook->getLoginUrl($loginUrlParameters);
 		$this->redirectToUri($loginUrl);
 	}
