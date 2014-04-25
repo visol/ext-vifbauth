@@ -191,6 +191,7 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 		$user['birthdate'] = \DateTime::createFromFormat('m/d/Y', $userInformation['birthday'])->getTimestamp();
 		$user['password'] = md5(GeneralUtility::shortMD5(uniqid(rand(), TRUE)));
 		$user['email'] = $userInformation['email'];
+		$user['notification_mail_active'] = 1;
 
 		$this->databaseHandle->exec_INSERTquery('fe_users', $user);
 	}
