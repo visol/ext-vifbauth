@@ -7,11 +7,11 @@ if (!defined('TYPO3_MODE')) {
 	'Visol.' . $_EXTKEY,
 	'Auth',
 	array(
-		'Authentication' => 'login',
+		'Authentication' => 'login,revokePermissions',
 	),
 	// non-cacheable actions
 	array(
-		'Authentication' => 'login',
+		'Authentication' => 'login,revokePermissions',
 	)
 );
 

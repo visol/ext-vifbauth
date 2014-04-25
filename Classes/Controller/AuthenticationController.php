@@ -33,6 +33,9 @@ require_once(\TYPO3\CMS\Core\Utility\ExtensionManagementUtility::extPath('vifbau
  */
 class AuthenticationController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController {
 
+	/**
+	 * action login
+	 */
 	public function loginAction() {
 		$facebookConfiguration = array(
 			'appId'  => $this->settings['facebookAppId'],
@@ -48,6 +51,27 @@ class AuthenticationController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionC
 		);
 		$loginUrl = $facebook->getLoginUrl($loginUrlParameters);
 		$this->redirectToUri($loginUrl);
+	}
+
+	/**
+	 * @param string $redirectUri
+	 */
+	public function revokePermissionsAction($redirectUri) {
+		$facebookConfiguration = array(
+			'appId'  => $this->settings['facebookAppId'],
+			'secret' => $this->settings['facebookAppSecret'],
+		);
+		/** @var \Facebook $facebook */
+		$facebook = GeneralUtility::makeInstance('\Facebook', $facebookConfiguration);
+		$facebookUserId = $facebook->getUser();
+
+		if ($facebookUserId > 0) {
+			$response = $facebook->api(
+				"/me/permissions",
+				"DELETE"
+			);
+		}
+		$this->redirectToUri($redirectUri);
 	}
 
 }
