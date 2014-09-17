@@ -44,7 +44,7 @@ class AuthenticationController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionC
 		/** @var \Facebook $facebook */
 		$facebook = GeneralUtility::makeInstance('\Facebook', $facebookConfiguration);
 
-		$redirectUri = $this->uriBuilder->setTargetPageUid($this->settings['loginSuccessPid'])->setArguments(array('logintype' => 'login'))->setAbsoluteUriScheme('https')->setCreateAbsoluteUri(TRUE)->build();
+		$redirectUri = $this->uriBuilder->setTargetPageUid($this->settings['loginSuccessPid'])->setArguments(array('logintype' => 'login'))->setAbsoluteUriScheme('https')->setCreateAbsoluteUri(TRUE)->setUseCacheHash(FALSE)->build();
 		$loginUrlParameters = array(
 			'redirect_uri' => $redirectUri,
 			'scope' => 'basic_info,email,user_birthday'
