@@ -34,9 +34,22 @@ require_once(\TYPO3\CMS\Core\Utility\ExtensionManagementUtility::extPath('vifbau
 class AuthenticationController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController {
 
 	/**
-	 * action login
+	 * Empty login that always returns false
+	 * This is the default action for the controller and it enables us to embed to Auth
+	 * plugin to every page to accept logins from every page
+	 *
+	 * @return bool
 	 */
-	public function loginAction() {
+	public function acceptLoginAction() {
+		return FALSE;
+	}
+
+	/**
+	 * action login
+	 *
+	 * @param null|integer $redirectPageUid
+	 */
+	public function loginAction($redirectPageUid = NULL) {
 		$facebookConfiguration = array(
 			'appId'  => $this->settings['facebookAppId'],
 			'secret' => $this->settings['facebookAppSecret'],
@@ -44,7 +57,7 @@ class AuthenticationController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionC
 		/** @var \Facebook $facebook */
 		$facebook = GeneralUtility::makeInstance('\Facebook', $facebookConfiguration);
 
-		$redirectUri = $this->uriBuilder->setTargetPageUid($this->settings['loginSuccessPid'])->setArguments(array('logintype' => 'login'))->setAbsoluteUriScheme('https')->setCreateAbsoluteUri(TRUE)->setUseCacheHash(FALSE)->build();
+		$redirectUri = $this->uriBuilder->setTargetPageUid($redirectPageUid)->setArguments(array('logintype' => 'login'))->setAbsoluteUriScheme('https')->setCreateAbsoluteUri(TRUE)->setUseCacheHash(FALSE)->build();
 		$loginUrlParameters = array(
 			'redirect_uri' => $redirectUri,
 			'scope' => 'basic_info,email,user_birthday'

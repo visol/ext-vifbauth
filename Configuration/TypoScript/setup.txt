@@ -1,6 +1,5 @@
 plugin.tx_vifbauth {
 	settings {
-		loginSuccessPid = 192
 		facebookAppId =
 		facebookAppSecret =
 		defaultFrontendUserGroupUid = 4
