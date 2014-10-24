@@ -2,7 +2,8 @@ plugin.tx_vifbauth {
 	settings {
 		facebookAppId =
 		facebookAppSecret =
-		defaultFrontendUserGroupUid = 4
+		# 4 = Community, 6 = Facebook
+		defaultFrontendUserGroupUid = 4,6
 	}
 	persistence {
 		storagePid = 144
