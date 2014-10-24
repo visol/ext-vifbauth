@@ -233,7 +233,7 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 			'first_name' => $userInformation['first_name'],
 			'last_name' => $userInformation['last_name'],
 			'usergroup' => (string)$this->extensionConfiguration['settings']['defaultFrontendUserGroupUid'],
-			'city' => $userInformation['location']['name'],
+			//'city' => $userInformation['location']['name'],
 			'tx_extbase_type' => 'Tx_Easyvote_CommunityUser',
 			'user_language' => $userLanguage,
 		);
