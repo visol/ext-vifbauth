@@ -142,6 +142,10 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 	 */
 	public function getUser() {
 		$user = FALSE;
+		if (array_key_exists('pass', $_POST)) {
+			// a password was submitted, so this is no Facebook login
+			return $user;
+		}
 
 		$facebookConfiguration = array(
 			'appId'  => $this->extensionConfiguration['settings']['facebookAppId'],
@@ -204,7 +208,6 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 	 * @return void
 	 */
 	protected function updateFrontendUser($userId, $userInformation) {
-		//$this->writelog(255,3,3,2,	"Updating user %s!", array($eventoId));
 		$where = "uid = " . $userId;
 		$user = $this->getUserDataArrayForDataHandler($userInformation);
 		$this->databaseHandle->exec_UPDATEquery('fe_users', $where, $user);
