@@ -107,6 +107,9 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 		if (defined('TYPO3_cliMode')) {
 			return parent::initAuth($mode, $loginData, $authInfo, $pObj);
 		}
+		if (array_key_exists('pass', $_POST)) {
+			return parent::initAuth($mode, $loginData, $authInfo, $pObj);
+		}
 		// Store login and authentication data
 		$this->loginData = $loginData;
 		$this->authInfo = $authInfo;
@@ -120,10 +123,9 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 	public function authUser(array $user) {
 		$result = 100;
 
-		if ($this->isFacebookLogin() && !empty($user)) {
+		if ($this->isFacebookLogin() && !empty($user) && !array_key_exists('pass', $_POST)) {
 			$result = 200;
 		}
-
 		return $result;
 	}
 
