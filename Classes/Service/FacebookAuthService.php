@@ -123,8 +123,10 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 	public function authUser(array $user) {
 		$result = 100;
 
-		if ($this->isFacebookLogin() && !empty($user) && !array_key_exists('pass', $_POST)) {
-			$result = 200;
+		if (!array_key_exists('pass', GeneralUtility::_POST()) || !empty($user)) {
+			if ($this->isFacebookLogin()) {
+				$result = 200;
+			}
 		}
 		return $result;
 	}
@@ -155,15 +157,22 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 		);
 		/** @var \Facebook $facebook */
 		$facebook = GeneralUtility::makeInstance('\Facebook', $facebookConfiguration);
+		$facebook->destroySession();
+		if (array_key_exists('token', GeneralUtility::_GET())) {
+			$facebook->setAccessToken(GeneralUtility::_GET('token'));
+		}
 		$facebookUserId = $facebook->getUser();
 
 		if ($facebookUserId > 0) {
 			$facebookUserInformation = $facebook->api('/' . $facebookUserId);
-
+			//\TYPO3\CMS\Core\Utility\DebugUtility::debug($facebookUserInformation);
+//			die();
 			// we have an authenticated Facebook user
 			$user = $this->getFrontendUser($facebookUserId);
 			if (!is_array($user) || empty($user)) {
 				$this->createFrontendUser($facebookUserInformation);
+				// TODO check for existing mobilizeCommunityUser and remove
+
 			} else {
 				$this->updateFrontendUser($user['uid'], $facebookUserInformation);
 			}
@@ -190,14 +199,22 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 	 * @param $userInformation
 	 */
 	protected function createFrontendUser($userInformation) {
-		//$this->writelog(255,3,3,2, "Importing user %s!", array($eventoId));
 		$user = $this->getUserDataArrayForDataHandler($userInformation);
 		$user['crdate'] = time();
 		$user['pid'] = $this->extensionConfiguration['persistence']['storagePid'];
-		$user['birthdate'] = \DateTime::createFromFormat('m/d/Y', $userInformation['birthday'])->getTimestamp();
+		if (array_key_exists('birthday', $userInformation) && !empty($userInformation['birthday'])) {
+			$user['birthdate'] = \DateTime::createFromFormat('m/d/Y', $userInformation['birthday'])->getTimestamp();
+		}
 		$user['password'] = md5(GeneralUtility::shortMD5(uniqid(rand(), TRUE)));
-		$user['email'] = $userInformation['email'];
+		if (array_key_exists('email', $userInformation) && !empty($userInformation['email'])) {
+			$user['email'] = $userInformation['email'];
+		} else {
+			$user['email'] = '';
+		}
 		$user['notification_mail_active'] = 1;
+
+		// generate auth token for community user
+		$user['authToken'] = \Visol\Easyvote\Utility\Algorithms::generateRandomToken(20);
 
 		$this->databaseHandle->exec_INSERTquery('fe_users', $user);
 	}
@@ -216,6 +233,8 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 	}
 
 	/**
+	 * Get the data that is updated on every login
+	 *
 	 * @param array $userInformation
 	 * @return array
 	 */
