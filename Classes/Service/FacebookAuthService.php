@@ -214,7 +214,7 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 		$user['notification_mail_active'] = 1;
 
 		// generate auth token for community user
-		$user['authToken'] = \Visol\Easyvote\Utility\Algorithms::generateRandomToken(20);
+		$user['auth_token'] = \Visol\Easyvote\Utility\Algorithms::generateRandomToken(20);
 
 		$this->databaseHandle->exec_INSERTquery('fe_users', $user);
 	}
