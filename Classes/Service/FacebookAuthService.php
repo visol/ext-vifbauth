@@ -202,6 +202,8 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 		$user = $this->getUserDataArrayForDataHandler($userInformation);
 		$user['crdate'] = time();
 		$user['pid'] = $this->extensionConfiguration['persistence']['storagePid'];
+		$user['usergroup'] = (string)$this->extensionConfiguration['settings']['defaultFrontendUserGroupUid'];
+
 		if (array_key_exists('birthday', $userInformation) && !empty($userInformation['birthday'])) {
 			$user['birthdate'] = \DateTime::createFromFormat('m/d/Y', $userInformation['birthday'])->getTimestamp();
 		}
@@ -253,8 +255,6 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 			'gender' => $userInformation['gender'] === 'male' ? 1 : 2,
 			'first_name' => $userInformation['first_name'],
 			'last_name' => $userInformation['last_name'],
-			'usergroup' => (string)$this->extensionConfiguration['settings']['defaultFrontendUserGroupUid'],
-			//'city' => $userInformation['location']['name'],
 			'tx_extbase_type' => 'Tx_Easyvote_CommunityUser',
 			'user_language' => $userLanguage,
 		);
