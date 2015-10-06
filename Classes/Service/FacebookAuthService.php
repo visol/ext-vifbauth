@@ -219,6 +219,19 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 		$user['auth_token'] = \Visol\Easyvote\Utility\Algorithms::generateRandomToken(20);
 
 		$this->databaseHandle->exec_INSERTquery('fe_users', $user);
+
+		// TODO start: Remove after elections
+		// Create an event for each new user
+		$newCommunityUserUid = (int)$this->databaseHandle->sql_insert_id();
+
+		$event = array(
+			'community_user' => $newCommunityUserUid,
+			'date' => '2015-10-08'
+		);
+		$this->databaseHandle->exec_INSERTquery('tx_easyvote_domain_model_event', $event);
+		$this->updateRelationCount('tx_easyvote_domain_model_event', 'community_user', 'events', 'fe_users', array('deleted', 'disable'));
+		// TODO end: Remove after elections
+
 	}
 
 	/**
@@ -262,5 +275,42 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 		return $user;
 	}
 
+	/**
+	 * Update the relations count for an 1:n IRRE relation
+	 * TODO: Remove after elections
+	 *
+	 * @param string $foreignTable The table with child records
+	 * @param string $foreignField The field in the child record holding the uid of the parent
+	 * @param string $localRelationField The field that holds the relation count
+	 * @param string $localTable The parent table
+	 * @param array $localEnableFields The enable fields to consider for the parent table
+	 * @param array $foreignEnableFields The enable fields to consider from the children table
+	 */
+	public function updateRelationCount($foreignTable, $foreignField, $localRelationField, $localTable = 'fe_users', $localEnableFields = array('hidden', 'deleted'), $foreignEnableFields = array('hidden', 'deleted')) {
+		$foreignEnableFieldsClause = '';
+		foreach ($foreignEnableFields as $foreignEnableField) {
+			$foreignEnableFieldsClause .= ' AND NOT ' . $foreignEnableField;
+		}
+		$localEnableFieldsClause = '';
+		foreach ($localEnableFields as $localEnableField) {
+			$localEnableFieldsClause .= ' AND NOT parent.' . $localEnableField;
+		}
+		$q = '
+			UPDATE ' . $localTable . ' AS parent
+			LEFT JOIN (
+				SELECT ' . $foreignField . ', COUNT(*) foreignCount
+				FROM  ' . $foreignTable . '
+				WHERE 1=1 ' . $foreignEnableFieldsClause . '
+				GROUP BY ' . $foreignField . '
+				) AS children
+			ON parent.uid = children.' . $foreignField . '
+			SET parent.' . $localRelationField . ' = CASE
+				WHEN children.foreignCount IS NULL THEN 0
+				WHEN children.foreignCount > 0 THEN children.foreignCount
+			END
+			WHERE 1=1 ' . $localEnableFieldsClause . ';
+		';
+		$this->databaseHandle->sql_query($q);
+	}
+
 }
-?>
