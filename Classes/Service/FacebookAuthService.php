@@ -1,14 +1,11 @@
 <?php
 namespace Visol\Vifbauth\Service;
 
-use TYPO3\CMS\Core\Exception;
-use TYPO3\CMS\Core\Utility\DebugUtility;
-use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
+use Facebook\GraphNodes\Birthday;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Core\Utility\HttpUtility;
-use TYPO3\CMS\Core\Utility\ResourceUtility;
 
-require_once(\TYPO3\CMS\Core\Utility\ExtensionManagementUtility::extPath('vifbauth') . 'Resources/PHP/facebook.php');
+// Composer Autoloader
+require_once(PATH_site . 'Packages/Libraries/autoload.php');
 
 class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 
@@ -64,6 +61,8 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 	 * @var \TYPO3\CMS\Core\Database\DatabaseConnection
 	 */
 	protected $databaseHandle;
+
+	protected $facebookUserId;
 
 	const LANGUAGE_GERMAN = 1;
 	const LANGUAGE_FRENCH = 2;
@@ -122,7 +121,6 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 	 */
 	public function authUser(array $user) {
 		$result = 100;
-
 		if (!array_key_exists('pass', GeneralUtility::_POST()) || !empty($user)) {
 			if ($this->isFacebookLogin()) {
 				$result = 200;
@@ -132,13 +130,7 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 	}
 
 	public function isFacebookLogin() {
-		$facebookConfiguration = array(
-			'appId'  => $this->extensionConfiguration['settings']['facebookAppId'],
-			'secret' => $this->extensionConfiguration['settings']['facebookAppSecret'],
-		);
-		/** @var \Facebook $facebook */
-		$facebook = GeneralUtility::makeInstance('\Facebook', $facebookConfiguration);
-		return $facebook->getUser() > 0 ? TRUE : FALSE;
+		return !empty($this->facebookUserId);
 	}
 
 	/**
@@ -150,33 +142,35 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 			// a password was submitted, so this is no Facebook login
 			return $user;
 		}
-
-		$facebookConfiguration = array(
-			'appId'  => $this->extensionConfiguration['settings']['facebookAppId'],
-			'secret' => $this->extensionConfiguration['settings']['facebookAppSecret'],
-		);
-		/** @var \Facebook $facebook */
-		$facebook = GeneralUtility::makeInstance('\Facebook', $facebookConfiguration);
-		$facebook->destroySession();
-		if (array_key_exists('token', GeneralUtility::_GET())) {
-			$facebook->setAccessToken(GeneralUtility::_GET('token'));
+		if (!array_key_exists('state', $_GET)) {
+			// no state parameter in request, so this is no Facebook login
+			return $user;
 		}
-		$facebookUserId = $facebook->getUser();
 
-		if ($facebookUserId > 0) {
-			$facebookUserInformation = $facebook->api('/' . $facebookUserId);
-			//\TYPO3\CMS\Core\Utility\DebugUtility::debug($facebookUserInformation);
-//			die();
+		$fb = new \Facebook\Facebook([
+			'app_id' => $this->extensionConfiguration['settings']['facebookAppId'],
+			'app_secret' => $this->extensionConfiguration['settings']['facebookAppSecret']
+		]);
+
+		$helper = $fb->getRedirectLoginHelper();
+		// http://stackoverflow.com/a/37693105/1517316
+		$_SESSION['FBRLH_state'] = $_GET['state'];
+		$accessToken = $helper->getAccessToken();
+
+		$response = $fb->get('/me?fields=id,first_name,last_name,gender,locale,birthday,email', $accessToken);
+
+		$graphUser = $response->getGraphUser();
+		$this->facebookUserId = $graphUser->getId();
+		if ($this->facebookUserId > 0) {
+			$facebookUserInformation = $graphUser->asArray();
 			// we have an authenticated Facebook user
-			$user = $this->getFrontendUser($facebookUserId);
+			$user = $this->getFrontendUser($this->facebookUserId);
 			if (!is_array($user) || empty($user)) {
 				$this->createFrontendUser($facebookUserInformation);
-				// TODO check for existing mobilizeCommunityUser and remove
-
 			} else {
 				$this->updateFrontendUser($user['uid'], $facebookUserInformation);
 			}
-			$user = $this->getFrontendUser($facebookUserId);
+			$user = $this->getFrontendUser($this->facebookUserId);
 		}
 
 		return $user;
@@ -204,8 +198,12 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 		$user['pid'] = $this->extensionConfiguration['persistence']['storagePid'];
 		$user['usergroup'] = (string)$this->extensionConfiguration['settings']['defaultFrontendUserGroupUid'];
 
-		if (array_key_exists('birthday', $userInformation) && !empty($userInformation['birthday'])) {
-			$user['birthdate'] = \DateTime::createFromFormat('m/d/Y', $userInformation['birthday'])->getTimestamp();
+		if (array_key_exists('birthday', $userInformation)) {
+			/** @var Birthday $birthday */
+			$birthday = $userInformation['birthday'];
+			if ($birthday->hasDate() && $birthday->hasYear()) {
+				$user['birthdate'] = $birthday->getTimestamp();
+			}
 		}
 		$user['password'] = md5(GeneralUtility::shortMD5(uniqid(rand(), TRUE)));
 		if (array_key_exists('email', $userInformation) && !empty($userInformation['email'])) {
@@ -219,19 +217,6 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 		$user['auth_token'] = \Visol\Easyvote\Utility\Algorithms::generateRandomToken(20);
 
 		$this->databaseHandle->exec_INSERTquery('fe_users', $user);
-
-		// TODO start: Remove after elections
-		// Create an event for each new user
-		$newCommunityUserUid = (int)$this->databaseHandle->sql_insert_id();
-
-		$event = array(
-			'community_user' => $newCommunityUserUid,
-			'date' => '2015-10-08'
-		);
-		$this->databaseHandle->exec_INSERTquery('tx_easyvote_domain_model_event', $event);
-		$this->updateRelationCount('tx_easyvote_domain_model_event', 'community_user', 'events', 'fe_users', array('deleted', 'disable'));
-		// TODO end: Remove after elections
-
 	}
 
 	/**
@@ -271,46 +256,7 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 			'tx_extbase_type' => 'Tx_Easyvote_CommunityUser',
 			'user_language' => $userLanguage,
 		);
-
 		return $user;
-	}
-
-	/**
-	 * Update the relations count for an 1:n IRRE relation
-	 * TODO: Remove after elections
-	 *
-	 * @param string $foreignTable The table with child records
-	 * @param string $foreignField The field in the child record holding the uid of the parent
-	 * @param string $localRelationField The field that holds the relation count
-	 * @param string $localTable The parent table
-	 * @param array $localEnableFields The enable fields to consider for the parent table
-	 * @param array $foreignEnableFields The enable fields to consider from the children table
-	 */
-	public function updateRelationCount($foreignTable, $foreignField, $localRelationField, $localTable = 'fe_users', $localEnableFields = array('hidden', 'deleted'), $foreignEnableFields = array('hidden', 'deleted')) {
-		$foreignEnableFieldsClause = '';
-		foreach ($foreignEnableFields as $foreignEnableField) {
-			$foreignEnableFieldsClause .= ' AND NOT ' . $foreignEnableField;
-		}
-		$localEnableFieldsClause = '';
-		foreach ($localEnableFields as $localEnableField) {
-			$localEnableFieldsClause .= ' AND NOT parent.' . $localEnableField;
-		}
-		$q = '
-			UPDATE ' . $localTable . ' AS parent
-			LEFT JOIN (
-				SELECT ' . $foreignField . ', COUNT(*) foreignCount
-				FROM  ' . $foreignTable . '
-				WHERE 1=1 ' . $foreignEnableFieldsClause . '
-				GROUP BY ' . $foreignField . '
-				) AS children
-			ON parent.uid = children.' . $foreignField . '
-			SET parent.' . $localRelationField . ' = CASE
-				WHEN children.foreignCount IS NULL THEN 0
-				WHEN children.foreignCount > 0 THEN children.foreignCount
-			END
-			WHERE 1=1 ' . $localEnableFieldsClause . ';
-		';
-		$this->databaseHandle->sql_query($q);
 	}
 
 }

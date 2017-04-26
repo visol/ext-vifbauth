@@ -3,7 +3,8 @@ namespace Visol\Vifbauth\Controller;
 
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
-require_once(\TYPO3\CMS\Core\Utility\ExtensionManagementUtility::extPath('vifbauth') . 'Resources/PHP/facebook.php');
+// Composer Autoloader
+require_once(PATH_site . 'Packages/Libraries/autoload.php');
 
 /***************************************************************
  *  Copyright notice
@@ -29,7 +30,7 @@ require_once(\TYPO3\CMS\Core\Utility\ExtensionManagementUtility::extPath('vifbau
  ***************************************************************/
 
 /**
- * Abstract base controller for the StaticInfoTables extension
+ * Abstract base controller for the vifbauth extension
  */
 class AuthenticationController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController {
 
@@ -50,19 +51,17 @@ class AuthenticationController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionC
 	 * @param null|integer $redirectPageUid
 	 */
 	public function loginAction($redirectPageUid = NULL) {
-		$facebookConfiguration = array(
-			'appId'  => $this->settings['facebookAppId'],
-			'secret' => $this->settings['facebookAppSecret'],
-		);
-		/** @var \Facebook $facebook */
-		$facebook = GeneralUtility::makeInstance('\Facebook', $facebookConfiguration);
+		$fb = new \Facebook\Facebook([
+			'app_id' => $this->settings['facebookAppId'],
+			'app_secret' => $this->settings['facebookAppSecret'],
+		]);
 
-		$redirectUri = $this->uriBuilder->setTargetPageUid($redirectPageUid)->setArguments(array('logintype' => 'login'))->setAbsoluteUriScheme('https')->setCreateAbsoluteUri(TRUE)->setUseCacheHash(FALSE)->build();
-		$loginUrlParameters = array(
-			'redirect_uri' => $redirectUri,
-			'scope' => 'basic_info,email,user_birthday'
-		);
-		$loginUrl = $facebook->getLoginUrl($loginUrlParameters);
+		$helper = $fb->getRedirectLoginHelper();
+
+		$permissions = ['email', 'basic_info', 'user_birthday'];
+		$redirectUri = $this->uriBuilder->setTargetPageUid($redirectPageUid)->setArguments(array('logintype' => 'login'))->setAbsoluteUriScheme('http')->setCreateAbsoluteUri(TRUE)->setUseCacheHash(FALSE)->build();
+		$loginUrl = $helper->getLoginUrl($redirectUri, $permissions);
+
 		$this->redirectToUri($loginUrl);
 	}
 
@@ -70,20 +69,17 @@ class AuthenticationController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionC
 	 * @param string $redirectUri
 	 */
 	public function revokePermissionsAction($redirectUri) {
-		$facebookConfiguration = array(
-			'appId'  => $this->settings['facebookAppId'],
-			'secret' => $this->settings['facebookAppSecret'],
-		);
-		/** @var \Facebook $facebook */
-		$facebook = GeneralUtility::makeInstance('\Facebook', $facebookConfiguration);
-		$facebookUserId = $facebook->getUser();
+		$fb = new \Facebook\Facebook([
+			'app_id' => $this->settings['facebookAppId'],
+			'app_secret' => $this->settings['facebookAppSecret'],
+		]);
 
-		if ($facebookUserId > 0) {
-			$response = $facebook->api(
-				"/me/permissions",
-				"DELETE"
-			);
-		}
+		$helper = $fb->getRedirectLoginHelper();
+		// http://stackoverflow.com/a/37693105/1517316
+		$_SESSION['FBRLH_state'] = $_GET['state'];
+		$accessToken = $helper->getAccessToken();
+
+		$response = $fb->delete('/me/permissions', $accessToken);
 		$this->redirectToUri($redirectUri);
 	}
 
