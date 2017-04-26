@@ -59,7 +59,7 @@ class AuthenticationController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionC
 		$helper = $fb->getRedirectLoginHelper();
 
 		$permissions = ['email', 'basic_info', 'user_birthday'];
-		$redirectUri = $this->uriBuilder->setTargetPageUid($redirectPageUid)->setArguments(array('logintype' => 'login'))->setAbsoluteUriScheme('http')->setCreateAbsoluteUri(TRUE)->setUseCacheHash(FALSE)->build();
+		$redirectUri = $this->uriBuilder->setTargetPageUid($redirectPageUid)->setArguments(array('logintype' => 'login'))->setAbsoluteUriScheme('https')->setCreateAbsoluteUri(TRUE)->setUseCacheHash(FALSE)->build();
 		$loginUrl = $helper->getLoginUrl($redirectUri, $permissions);
 
 		$this->redirectToUri($loginUrl);
