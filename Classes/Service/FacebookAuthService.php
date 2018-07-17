@@ -157,7 +157,7 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 		$_SESSION['FBRLH_state'] = $_GET['state'];
 		$accessToken = $helper->getAccessToken();
 
-		$response = $fb->get('/me?fields=id,first_name,last_name,gender,locale,birthday,email', $accessToken);
+		$response = $fb->get('/me?fields=id,first_name,last_name,locale,birthday,email', $accessToken);
 
 		$graphUser = $response->getGraphUser();
 		$this->facebookUserId = $graphUser->getId();
@@ -250,7 +250,6 @@ class FacebookAuthService extends \TYPO3\CMS\Sv\AbstractAuthenticationService {
 		$user = array(
 			'tstamp' => time(),
 			'username' => $userInformation['id'],
-			'gender' => $userInformation['gender'] === 'male' ? 1 : 2,
 			'first_name' => $userInformation['first_name'],
 			'last_name' => $userInformation['last_name'],
 			'tx_extbase_type' => 'Tx_Easyvote_CommunityUser',
